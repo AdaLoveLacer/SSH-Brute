@@ -67,6 +67,7 @@ def menu():
     print("5 - Ataque Man-in-the-Middle (MITM) ARP Spoofing [Requer administrador]")
     print(f"6 - Definir limite de pacotes do MITM (atual: {PACOTE_LIMITE})")
     print("7 - Floodar câmera e analisar tráfego (DoS/teste de bugs)")
+    print("8 - HeavyFlood (flood + brute force simultâneo)")
     print("0 - Sair")
     return input("Opção: ").strip()
 
@@ -219,11 +220,25 @@ def executar_floodar(ip):
     perguntar_outra_acao()
 def perguntar_outra_acao():
     resp = input("\nDeseja tentar outra opção? (s/n): ").strip().lower()
-    if resp == 's':
-        pass  # O loop principal continuará
-    else:
-        print("Saindo...")
-        exit()
+def executar_heavyflood(ip):
+    try:
+        import subprocess
+        import sys
+        interface = input("Interface de rede para captura [Ethernet]: ").strip()
+        if not interface:
+            interface = "Ethernet"
+        print(f"[INFO] Abrindo brute force e flood simultaneamente com IP {ip} e interface {interface}...")
+        # Abre brute.py em nova janela
+        subprocess.Popen([
+            sys.executable, "brute.py", ip, "22"
+        ], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        # Abre flodar.py em nova janela
+        subprocess.Popen([
+            sys.executable, "flodar.py", ip, interface
+        ], creationflags=subprocess.CREATE_NEW_CONSOLE)
+    except Exception as e:
+        print(f"[ERRO] Não foi possível executar o heavyflood: {e}")
+    perguntar_outra_acao()
 
 def capturar_info_portas(ip):
     import socket
@@ -278,6 +293,8 @@ if __name__ == "__main__":
                 print("Erro ao definir o limite.")
         elif opcao == '7':
             executar_floodar(ip)
+        elif opcao == '8':
+            executar_heavyflood(ip)
         elif opcao == '0':
             print("Saindo...")
             break
