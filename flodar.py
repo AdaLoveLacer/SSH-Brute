@@ -65,7 +65,8 @@ def flodar(ip, interface="eth0"):
     print("[INFO] Flood concluído. Iniciando análise automática do flood_capture.pcap...")
     try:
         import subprocess
-        subprocess.run(["python", "analise_pcap.py", "flood_capture.pcap"])
+        import sys
+        subprocess.run([sys.executable, "analise_pcap.py", "flood_capture.pcap"])
     except Exception as e:
         print(f"[ERRO] Não foi possível rodar analise_pcap.py automaticamente: {e}")
 

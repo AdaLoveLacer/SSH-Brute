@@ -167,8 +167,10 @@ if __name__ == "__main__":
     # Função para rodar brute force SSH em paralelo
     def run_brute():
         try:
-            # Ajuste o caminho do Python se necessário
-            subprocess.Popen(['python', 'brute.py'])
+            # Usa o Python do ambiente virtual ativo
+            import sys
+            import os
+            subprocess.Popen([sys.executable, os.path.join(os.path.dirname(__file__), 'brute.py')])
         except Exception as e:
             print(f"[ERRO] Não foi possível iniciar brute force SSH em paralelo: {e}")
 

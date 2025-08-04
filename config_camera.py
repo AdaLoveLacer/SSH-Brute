@@ -209,10 +209,11 @@ def executar_analise_firmware():
 def executar_floodar(ip):
     try:
         import subprocess
+        import sys
         interface = input("Interface de rede para captura [Ethernet]: ").strip()
         if not interface:
             interface = "Ethernet"
-        subprocess.run(["python", "flodar.py", ip, interface])
+        subprocess.run([sys.executable, "flodar.py", ip, interface])
     except Exception as e:
         print(f"[ERRO] Não foi possível executar o flood: {e}")
     perguntar_outra_acao()
