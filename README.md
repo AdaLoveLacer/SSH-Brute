@@ -1,3 +1,19 @@
+# Ataque Man-in-the-Middle (MITM) ARP Spoofing
+
+## Descrição
+O script `mitm_arp_spoof.py` realiza um ataque Man-in-the-Middle (MITM) entre a câmera e o roteador usando ARP spoofing, permitindo capturar o tráfego entre eles. **É necessário rodar como administrador/root.**
+
+## Como usar
+1. Execute o menu principal (`config_camera.py`) e escolha a opção "Ataque Man-in-the-Middle (MITM) ARP Spoofing".
+2. Informe o IP da câmera, o IP do gateway/roteador e a interface de rede (ex: eth0, wlan0).
+3. O tráfego será capturado e salvo em um arquivo `mitm_capture.pcap`.
+
+**Atenção:**
+- O uso deste script é apenas para fins educacionais e de teste em ambientes autorizados.
+- É necessário rodar como administrador/root para manipular pacotes de rede.
+- O pacote `scapy` será instalado automaticamente se não estiver presente.
+
+---
 # SSH Brute & Auditoria de Câmeras IP
 
 Este projeto reúne scripts para auditoria, automação de força bruta de credenciais e busca de vulnerabilidades em câmeras IP, especialmente modelos white-label chineses.

@@ -58,8 +58,25 @@ def menu():
     print("2 - Busca de exploits públicos")
     print("3 - Análise de firmware")
     print("4 - Capturar informações das portas 554/50000")
+    print("5 - Ataque Man-in-the-Middle (MITM) ARP Spoofing [Requer administrador]")
     print("0 - Sair")
     return input("Opção: ").strip()
+
+
+def executar_mitm_arp(ip):
+    print("\n--- MITM ARP Spoofing ---")
+    print("[IMPORTANTE] Rode este script como administrador/root!")
+    gateway_ip = input("Digite o IP do gateway/roteador: ").strip()
+    iface = input("Interface de rede (ex: eth0, wlan0): ").strip()
+    try:
+        import mitm_arp_spoof
+        if hasattr(mitm_arp_spoof, 'mitm_attack'):
+            mitm_arp_spoof.mitm_attack(ip, gateway_ip, iface)
+        else:
+            print("Função mitm_attack não encontrada no módulo mitm_arp_spoof.")
+    except Exception as e:
+        print(f"[ERRO] Não foi possível executar o ataque MITM: {e}")
+    perguntar_outra_acao()
 
 def executar_bruteforce(ip, porta):
     try:
@@ -140,6 +157,8 @@ if __name__ == "__main__":
             executar_analise_firmware()
         elif opcao == '4':
             capturar_info_portas(ip)
+        elif opcao == '5':
+            executar_mitm_arp(ip)
         elif opcao == '0':
             print("Saindo...")
             break
