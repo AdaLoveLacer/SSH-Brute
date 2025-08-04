@@ -1,3 +1,7 @@
+
 paramiko>=3.0.0
 requests>=2.0.0
 binwalk  # opcional, apenas para análise automática de firmware
+scapy
+psutil
+pyshark  # opcional, para análise pcap alternativa

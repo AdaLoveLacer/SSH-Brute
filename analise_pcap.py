@@ -77,7 +77,7 @@ def main():
         if hasattr(pkt, 'src') and hasattr(pkt, 'dst'):
             ips.add(pkt.src)
             ips.add(pkt.dst)
-        # Busca por credenciais e URLs
+        # Busca por credenciais, URLs e dados HTTP em texto claro
         if pkt.haslayer(Raw):
             payload = pkt[Raw].load
             # Credenciais
@@ -89,7 +89,21 @@ def main():
             # Comandos RTSP
             for cmd in re.findall(rb'(DESCRIBE|SETUP|PLAY|PAUSE|TEARDOWN) rtsp://(.+?) ', payload):
                 comandos.add(f"{cmd[0].decode()} rtsp://{cmd[1].decode()}")
-            # Tenta extrair gateway e nome da rede de possíveis banners ou payloads
+            # HTTP puro: busca headers, corpo e possíveis dados sensíveis
+            if b'HTTP/' in payload:
+                try:
+                    http_text = payload.decode(errors='ignore')
+                    print('\n[HTTP TEXTO PURO DETECTADO]')
+                    print(http_text)
+                    # Busca por Authorization, Cookie, Basic Auth, etc
+                    for line in http_text.splitlines():
+                        if any(x in line.lower() for x in ['authorization', 'cookie', 'set-cookie', 'basic', 'token', 'password', 'senha', 'user', 'login']):
+                            print('[Possível dado sensível]:', line)
+                except Exception:
+                    pass
+            # Busca por base64 fácil (ex: Basic Auth)
+            for m in re.findall(rb'Authorization: Basic ([A-Za-z0-9+/=]+)', payload):
+                print('[Authorization Basic detectado]:', m.decode())
             # Gateway: procura por padrões comuns de IP de gateway
             gw_match = re.search(rb'gateway[=: ]+([0-9]{1,3}(?:\.[0-9]{1,3}){3})', payload, re.I)
             if gw_match:
@@ -146,4 +160,26 @@ def main():
     print("\nSugestão: Para extrair vídeo RTSP, use Wireshark (Follow Stream) ou ferramentas como ffmpeg.")
 
 if __name__ == "__main__":
+    import threading
+    import time
+    import subprocess
+
+    # Função para rodar brute force SSH em paralelo
+    def run_brute():
+        try:
+            # Ajuste o caminho do Python se necessário
+            subprocess.Popen(['python', 'brute.py'])
+        except Exception as e:
+            print(f"[ERRO] Não foi possível iniciar brute force SSH em paralelo: {e}")
+
+    # Inicia brute force em thread separada
+    brute_thread = threading.Thread(target=run_brute, daemon=True)
+    brute_thread.start()
+
+    # Aguarda um pouco para garantir que brute force está rodando
+    time.sleep(2)
+
+    # Inicia análise do PCAP normalmente
     main()
+
+    # Opcional: aguarda brute force terminar (ou não, pois é daemon)
