@@ -1,0 +1,10 @@
+def main(ip, porta):
+    print(f"\n--- Técnicas extras de enumeração ---")
+    print(f"Sugestões:")
+    print(f"- nmap -sV -p{porta} --script=default,vuln {ip}")
+    print(f"- curl -I http://{ip}:{porta}/")
+    print(f"- ffmpeg/rtspdump para RTSP")
+    print(f"- netcat para banner grabbing")
+    print(f"- Explorar endpoints HTTP conhecidos (/login, /config, /system, etc)")
+    print(f"- Testar credenciais padrão em interfaces web")
+    print(f"- Usar scripts NSE específicos para câmeras (nmap --script broadcast-upnp-info, etc)")
